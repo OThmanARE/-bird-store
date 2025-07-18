@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>متجر الطيور والمستلزمات | Bird Store</title>
+<style>
+  body { font-family: Arial, sans-serif; margin:0; padding:0; }
+  header { background: #007bff; color: white; padding: 10px; display:flex; justify-content:space-between; align-items:center; }
+  nav select { padding:5px; }
+  main { padding: 20px; }
+  .product { border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+  .product img { max-width: 150px; height: auto; display: block; margin-bottom: 10px; }
+  .btn { padding: 8px 12px; margin-right: 5px; border:none; border-radius: 4px; cursor: pointer; }
+  .btn-add { background: #28a745; color: white; }
+  .btn-whatsapp { background: #25D366; color: white; }
+  .cart { position: fixed; top: 10px; right: 10px; background: #ffc107; padding: 10px; border-radius: 50%; cursor: pointer; }
+  .cart-count { font-weight: bold; }
+  #cart-modal { display:none; position:fixed; top:50px; right:10px; background:#fff; border:1px solid #ccc; width:300px; max-height:400px; overflow-y:auto; padding:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); }
+  #cart-modal h2 { margin-top:0; }
+  #cart-modal button.close { float:right; background:#dc3545; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; }
+  .lang-switcher { background:#0069d9; color:#fff; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="title">متجر الطيور والمستلزمات</h1>
+  <div>
+    <select id="language-select" aria-label="Select language">
+      <option value="ar">العربية</option>
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+    </select>
+  </div>
+  <div class="cart" id="cart-btn" title="عربة التسوق (Cart)">
+    🛒 <span class="cart-count" id="cart-count">0</span>
+  </div>
+</header>
+
+<main id="main-content">
+  <!-- المنتجات ستظهر هنا -->
+</main>
+
+<!-- عربة التسوق -->
+<div id="cart-modal" aria-hidden="true">
+  <button class="close" id="close-cart">×</button>
+  <h2 id="cart-title">عربة التسوق</h2>
+  <div id="cart-items"></div>
+  <p id="cart-total"></p>
+  <button id="paypal-button" style="background:#003087; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer;">ادفع عبر PayPal</button>
+</div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=USD"></script>
+
+<script>
+const products = [
+  {
+    id: 1,
+    images: {
+      ar: 'https://i.imgur.com/7z7VYXH.jpg',
+      en: 'https://i.imgur.com/7z7VYXH.jpg',
+      fr: 'https://i.imgur.com/7z7VYXH.jpg'
+    },
+    name: {
+      ar: 'غولديان طفرة بنفسجية',
+      en: 'Purple Gouldian Finch',
+      fr: 'Gouldian Violet'
+    },
+    desc: {
+      ar: 'طائر نادر بألوان جذابة.',
+      en: 'Rare bird with attractive colors.',
+      fr: 'Oiseau rare aux couleurs attractives.'
+    },
+    price: 300
+  },
+  {
+    id: 2,
+    images: {
+      ar: 'https://i.imgur.com/Vhz6b6m.jpg',
+      en: 'https://i.imgur.com/Vhz6b6m.jpg',
+      fr: 'https://i.imgur.com/Vhz6b6m.jpg'
+    },
+    name: {
+      ar: 'موانو ذكر',
+      en: 'Mandarin Male',
+      fr: 'Mandarin Mâle'
+    },
+    desc: {
+      ar: 'طيور ملونة برتقالية جميلة.',
+      en: 'Beautiful orange-colored bird.',
+      fr: 'Beau oiseau orange coloré.'
+    },
+    price: 120
+  },
+  {
+    id: 3,
+    images: {
+      ar: 'https://i.imgur.com/LZOSXyE.jpg',
+      en: 'https://i.imgur.com/LZOSXyE.jpg',
+      fr: 'https://i.imgur.com/LZOSXyE.jpg'
+    },
+    name: {
+      ar: 'قفص متوسط الحجم',
+      en: 'Medium Cage',
+      fr: 'Cage Moyenne'
+    },
+    desc: {
+      ar: 'مناسب لزوج من الطيور.',
+      en: 'Suitable for a pair of birds.',
+      fr: 'Convient pour une paire d\'oiseaux.'
+    },
+    price: 180
+  }
+];
+
+let cart = [];
+
+const languageSelect = document.getElementById('language-select');
+const title = document.getElementById('title');
+const mainContent = document.getElementById('main-content');
+const cartBtn = document.getElementById('cart-btn');
+const cartModal = document.getElementById('cart-modal');
+const closeCartBtn = document.getElementById('close-cart');
+const cartItems = document.getElementById('cart-items');
+const cartCount = document.getElementById('cart-count');
+const cartTotal = document.getElementById('cart-total');
+const cartTitle = document.getElementById('cart-title');
+const paypalButton = document.getElementById('paypal-button');
+
+let currentLang = 'ar';
+
+function renderProducts() {
+  mainContent.innerHTML = '';
+  products.forEach(product => {
+    const div = document.createElement('div');
+    div.className = 'product';
+    div.innerHTML = `
+      <img src="${product.images[currentLang]}" alt="${product.name[currentLang]}" />
+      <h3>${product.name[currentLang]}</h3>
+      <p>${product.desc[currentLang]}</p>
+      <p><strong>${product.price} درهم</strong></p>
+      <button class="btn btn-add" data-id="${product.id}">${translations.addToCart[currentLang]}</button>
+      <button class="btn btn-whatsapp" onclick="orderWhatsApp('${product.name[currentLang]}')">${translations.orderWhatsApp[currentLang]}</button>
+    `;
+    mainContent.appendChild(div);
+  });
+}
+
+function orderWhatsApp(productName) {
+  const phone = '212653526190'; // رقم واتساب ديالك بدون + (يمكن تغييره)
+  const text = encodeURIComponent(`مرحبًا، أريد طلب المنتج: ${productName}`);
+  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+}
+
+function addToCart(id) {
+  const product = products.find(p => p.id === id);
+  if (!product) return;
+  const found = cart.find(item => item.id === id);
+  if (found) {
+    found.qty++;
+  } else {
+    cart.push({ ...product, qty: 1 });
+  }
+  updateCart();
+}
+
+function updateCart() {
+  cartCount.textContent = cart.reduce((acc, item) => acc + item.qty, 0);
+  renderCart();
+}
+
+function renderCart() {
+  cartItems.innerHTML = '';
+  if (cart.length === 0) {
+    cartItems.innerHTML = `<p>${translations.cartEmpty[currentLang]}</p>`;
+    cartTotal.textContent = '';
+    paypalButton.style.display = 'none';
+    return;
+  }
+  let total = 0;
+  cart.forEach(item => {
+    total += item.price * item.qty;
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <p>${item.name[currentLang]} × ${item.qty} = ${item.price * item.qty} درهم</p>
+    `;
+    cartItems.appendChild(div);
+  });
+  cartTotal.textContent = `${translations.total[currentLang]}: ${total} درهم`;
+  paypalButton.style.display = 'inline-block';
+}
+
+function toggleCart() {
+  const isHidden = cartModal.style.display === 'none' || cartModal.style.display === '';
+  cartModal.style.display = isHidden ? 'block' : 'none';
+  cartModal.setAttribute('aria-hidden', !isHidden);
+}
+
+languageSelect.addEventListener('change', e => {
+  currentLang = e.target.value;
+  updateTexts();
+  renderProducts();
+  renderCart();
+});
+
+cartBtn.addEventListener('click', toggleCart);
+closeCartBtn.addEventListener('click', toggleCart);
+
+mainContent.addEventListener('click', e => {
+  if (e.target.classList.contains('btn-add')) {
+    const id = parseInt(e.target.getAttribute('data-id'));
+    addToCart(id);
+  }
+});
+
+function updateTexts() {
+  const titles = {
+    ar: 'متجر الطيور والمستلزمات',
+    en: 'Birds & Supplies Store',
+    fr: 'Boutique d\'Oiseaux et Accessoires'
+  };
+  title.textContent = titles[currentLang];
+  cartTitle.textContent = translations.cartTitle[currentLang];
+  paypalButton.textContent = translations.paypalPay[currentLang];
+}
+
+const translations = {
+  addToCart: { ar: 'أضف إلى السلة', en: 'Add to Cart', fr: 'Ajouter au panier' },
+  orderWhatsApp: { ar: 'طلب عبر واتساب', en: 'Order on WhatsApp', fr: 'Commander sur WhatsApp' },
+  cartEmpty: { ar: 'السلة فارغة', en: 'Cart is empty', fr: 'Le panier est vide' },
+  total: { ar: 'المجموع', en: 'Total', fr: 'Total' },
+  cartTitle: { ar: 'عربة التسوق', en: 'Shopping Cart', fr: 'Panier' },
+  paypalPay: { ar: 'ادفع عبر PayPal', en: 'Pay with PayPal', fr: 'Payer avec PayPal' }
+};
+
+updateTexts();
+renderProducts();
+renderCart();
+
+// PayPal integration (sandbox for demo, replace client-id with live ID)
+paypal.Buttons({
+  createOrder: function(data, actions) {
+    const total = cart.reduce((acc, item) => acc + item.price * item.qty, 0);
+    return actions.order.create({
+      purchase_units: [{
+        amount: {
+          value: total.toString()
+        }
+      }]
+    });
+  },
+  onApprove: function(data, actions) {
+    return actions.order.capture().then(function(details) {
+      alert('تم الدفع بنجاح، شكرًا لك ' + details.payer.name.given_name);
+      cart = [];
+      updateCart();
+      toggleCart();
+    });
+  }
+}).render('#paypal-button');
+
+</script>
+
+</body>
+</html>
